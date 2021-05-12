@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="Commissionflow"
+		doc:id="f59269df-3fd8-4c4c-b5b9-add9b1335276">
+		<ee:transform doc:name="CSV TO JAVA"
+			doc:id="87a97a8f-e74a-4675-b4ae-23e684e6989e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	region: payload."Region",
+	country: payload."Country",
+	itemtype: payload."ItemType",
+	saleschannel: payload."SalesChannel",
+	orderpriority: payload."OrderPriority",
+	orderdate: payload."OrderDate" as Date {format: "yyyy-MM-dd"},
+	orderid: payload."OrderID",
+	shipdate: payload."ShipDate" as Date {format: "yyyy-MM-dd"},
+	unitsold: payload."UnitsSold",
+	unitprice: payload."UnitPrice",
+	unitcost: payload."UnitCost",
+	totalrevenue: payload."TotalRevenue",
+	totalcost: payload.'TotalCost',
+	totalprofit: payload.'TotalProfit'
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="payload"><![CDATA[""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Insert new sales data"
+			doc:id="368d70ae-c166-4b3e-9f66-805e4300449c"
+			name="Insert_newsalesdata" target="payload" />
+		<ee:transform doc:name="TotalProfit"
+			doc:id="56e7567c-13b5-433a-a788-fd61c568ef9d">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="OrderID"><![CDATA[payload.Orderid]]></ee:set-variable>
+				<ee:set-variable variableName="profit"><![CDATA[payload.totalprofit]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice"
+			doc:id="4eb0c9aa-7743-4e13-874d-0c3ff670443e">
+			<when
+				expression="#[payload.region == 'Middle East and North Africa']">
+				<set-variable value="10" doc:name="percent"
+					doc:id="06f39e3a-94ba-4d68-92b0-6d7780d057f9"
+					variableName="percent" />
+			</when>
+			<when expression="#[payload.region == 'Europe']">
+				<set-variable value="15" doc:name="percent"
+					doc:id="d28c1e16-03ad-4522-9701-fa47756296f6"
+					variableName="percent" />
+			</when>
+			<when expression="#[payload.region == 'Asia']">
+				<set-variable value="17" doc:name="percent"
+					doc:id="7ccf6755-3ea7-4f64-9015-a8f7aff3aa02"
+					variableName="percent" />
+			</when>
+			<when
+				expression="#[payload.region == 'Central America and the Caribbean']">
+				<set-variable value="7" doc:name="percent"
+					doc:id="7785bff9-135e-4d0f-95e7-a557bc9d9a4d"
+					variableName="percent" />
+			</when>
+			<otherwise>
+				<set-variable value="12" doc:name="percent"
+					doc:id="c870b9ba-69fa-4190-8c95-b55ca1df9916"
+					variableName="percent" />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="calculate commission"
+			doc:id="d854e36c-b063-4017-8811-18900d4662ab">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+
+{
+	orderId: payload.orderid,
+	commission: (vars.profit + vars.percent)/100
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:insert doc:id="1c2eb256-5a71-4cdd-a2ee-2f2e6760a72f"
+			config-ref="Database_Config" doc:name="Insert into Commission Table">
+			<db:sql><![CDATA[insert into Commission(order_id,commission)values (:orderid, :commissio)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	orderid: payload.orderId,
+	commissio: payload.commission
+}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Transform Message" doc:id="e8f05f43-fa70-4d23-8236-20af5dc60c26" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Record Added In NewSalesData and Commission Table"
+	
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger"
+			doc:id="6cc18974-b76b-4754-84c1-d1c0913db26f" message="#[payload]" />
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="26075610-d893-4b68-bfe9-4ec177bbcdaa" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="a33af424-420f-4b7d-a862-731a376d8926">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"error-type":error.errorType,
+	"error-cause":error.cause.cause,
+	"error-cause-message": error.cause.message,
+	"errorMessage": error.errorMessage,
+	"error-description": error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<sub-flow name="Insert_newsalesdata"
+		doc:id="2580bae5-4ccc-4944-bad6-8d29e6dadd49">
+		<logger level="INFO" doc:name="Logger"
+			doc:id="6dabf44f-ce62-4618-b57a-e6a68cb7f409" />
+		<db:insert doc:id="37a4b4eb-c87e-4d11-b99d-81b302483f0c"
+			config-ref="Database_Config" doc:name="Insert NewSalesData">
+			<db:sql><![CDATA[insert into NewSalesData(region,country,item_type,sales_channel,order_priority,order_date,order_id,ship_date,unit_sold,unit_price,unit_cost,total_revenue,total_cost,total_profit)values(:regio, :countr, :itemtyp,:saleschanne, :orderpriorit, :orderdat, :orderi, :shipdat, :unitsol, :unitpric, :unitcos, :totalrevenu, :totalcos, :totalprofi)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	regio: payload.region,
+	countr: payload.country,
+	itemtyp: payload.itemtype,
+	saleschanne: payload.saleschannel,
+	orderpriorit: payload.orderpriority,
+	orderdat: payload.orderdate,
+	orderi: payload.orderid,
+	shipdat: payload.shipdate,
+	unitsol: payload.unitsold,
+	unitpric: payload.unitprice,
+	unitcos: payload.unitcost,
+	totalrevenu: payload.totalrevenue,
+	totalcos: payload.totalcost,
+	totalprofi: payload.totalprofit
+}]]]></db:input-parameters>
+		</db:insert>
+	</sub-flow>
+</mule>

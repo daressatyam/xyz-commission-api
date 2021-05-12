@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<db:config name="Database_Config" doc:name="Database Config"
+		doc:id="ddf23e47-50e9-44c3-8040-c2419998ca14">
+		<db:my-sql-connection host="${db4.host}"
+			port="${db4.port}" user="${db4.user}" password="${secure::db4.password}"
+			database="${db4.database}" />
+	</db:config>
+	<global-property doc:name="Global Property"
+		doc:id="2ff8eda9-4359-418c-870b-3a7791a3d3ae" name="env" value="dev" />
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="c61e82a8-9c1a-4046-ad62-5b7e2dbc60b6" file="config/${env}.yaml" />
+	<global-property doc:name="Global Property" doc:id="94bdeebc-ac08-4074-afaa-1e42c58c7f48" name="token" value="teapot@1234" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="ec831cf8-86b3-42b0-acaa-1632e9d229dd" file="config/${env}.yaml" key="${token}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<!-- <api-gateway:autodiscovery apiId="16823789" ignoreBasePath="true" doc:name="API 
+		Autodiscovery" doc:id="297f1c95-19a1-4809-bf9a-7ee7dfa31207" flowRef="commisionapi-main" 
+		/> -->
+</mule>
